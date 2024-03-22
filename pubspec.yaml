@@ -1,6 +1,6 @@
 name: bounce
 description: A widget that animates its children with a smooth scale and rotate animation, depending on the location of the touch.
-version: 1.0.0
+version: 1.0.2
 homepage: https://cendre.me
 repository: https://github.com/mrcendre/bounce
 issue_tracker: https://github.com/mrcendre/bounce/issues?q=is%3Aissue+is%3Aopen

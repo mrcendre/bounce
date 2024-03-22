@@ -15,15 +15,21 @@ const _defaultTapDelay = Duration(milliseconds: 150);
 /// The default duration for the scale and rotation animations, when enabled.
 const _defaultDuration = Duration(milliseconds: 400);
 
-const _defaultLongPressDuration = Duration(milliseconds: 1000);
+const _defaultLongPressDuration = Duration(milliseconds: 700);
 
 class Bounce extends StatefulWidget {
-  /// The callback fired when the user's finger is lifted from the widget,
-  /// providing informations about local and global position.
+  /// The callback fired when the user's finger is lifted from the widget.
   final Function()? onTap;
 
+  /// The callback fired when the user's finger is lifted from the widget.
+  /// Usually provided instead of [onTap], to obtain the [TapUpDetails] object associated with the touch event.
+  final Function(TapUpDetails)? onTapUp;
+
+  /// The callback fired when the user's secondary pointer is lifted from the widget.
+  final Function(TapUpDetails)? onSecondaryTapUp;
+
   /// The callback fired when the widget is held for a few seconds.
-  final Function()? onLongPress;
+  final Function(TapDownDetails)? onLongPress;
 
   /// The duration for the scale and rotation animations, when enabled.
   final Duration duration;
@@ -57,10 +63,15 @@ class Bounce extends StatefulWidget {
   /// Specifying a null [filterQuality] may result in poor performances and aliased edges.
   final FilterQuality? filterQuality;
 
+  /// The cursor to use when hovering over the widget.
+  final MouseCursor? cursor;
+
   const Bounce(
       {Key? key,
       required this.child,
       this.onTap,
+      this.onTapUp,
+      this.onSecondaryTapUp,
       this.onLongPress,
       this.behavior = HitTestBehavior.deferToChild,
       this.duration = _defaultDuration,
@@ -70,7 +81,8 @@ class Bounce extends StatefulWidget {
       this.scaleFactor = 0.95,
       this.tilt = true,
       this.tiltAngle = pi / 10,
-      this.filterQuality = FilterQuality.high})
+      this.filterQuality = FilterQuality.high,
+      this.cursor})
       : super(key: key);
 
   @override
@@ -79,8 +91,9 @@ class Bounce extends StatefulWidget {
 
 class BounceState extends State<Bounce> with SingleTickerProviderStateMixin {
   Function()? get onTap => widget.onTap;
+  Function(TapUpDetails)? get onTapUp => widget.onTapUp;
 
-  Function()? get onLongPress => widget.onLongPress;
+  Function(TapDownDetails)? get onLongPress => widget.onLongPress;
 
   late AnimationController _controller;
 
@@ -112,6 +125,7 @@ class BounceState extends State<Bounce> with SingleTickerProviderStateMixin {
       onPanUpdate: _onPointerMove,
       onTapCancel: _onTapCancel,
       onTapUp: _onPointerUp,
+      onSecondaryTapUp: (details) => widget.onSecondaryTapUp?.call(details),
       dragStartBehavior: DragStartBehavior.down,
       child: AnimatedBuilder(
           animation: _controller,
@@ -146,7 +160,7 @@ class BounceState extends State<Bounce> with SingleTickerProviderStateMixin {
               onSizeChange: (newSize) {
                 lastSize = newSize;
               },
-              child: widget.child)));
+              child: MouseRegion(cursor: widget.cursor ?? MouseCursor.defer, child: widget.child))));
 
   void _onTapDown(TapDownDetails details) {
     isCancelled = false;
@@ -163,7 +177,7 @@ class BounceState extends State<Bounce> with SingleTickerProviderStateMixin {
     Future.delayed(widget.longPressDuration, () {
       /// If the user is still pressing after the long press duration, trigger the long press callback.
       if (mounted && isLongPressing) {
-        _onLongPress();
+        _onLongPress(details);
       }
     });
   }
@@ -206,23 +220,25 @@ class BounceState extends State<Bounce> with SingleTickerProviderStateMixin {
       if (msSinceTapDown > widget.tapDelay.inMilliseconds) {
         /// If the minimum delay is ellapsed, immediately trigger the action.
         onTap?.call();
+        onTapUp?.call(details);
       } else {
         /// Otherwise, wait for the difference between the actually ellapsed time and the minimum delay before
         /// triggering the animation.
         Future.delayed(widget.tapDelay - _lastTapTime!.difference(DateTime.now()), () {
           onTap?.call();
+          onTapUp?.call(details);
         });
       }
     }
   }
 
-  void _onLongPress() {
+  void _onLongPress(TapDownDetails details) {
     if (isCancelled) {
       isCancelled = false;
       return;
     }
 
-    onLongPress?.call();
+    onLongPress?.call(details);
   }
 
   void _animateBack() {
